@@ -39,7 +39,6 @@ module TT::Plugins::Teapot
 	load File.join( PATH, 'teapot.rb' )
 	load File.join( PATH, 'teacup.rb' )
 	load File.join( PATH, 'teaspoon.rb' )
-	load File.join( PATH, 'bezier.rb' )
 
 	unless file_loaded?( __FILE__ )
 		# Commands
@@ -74,6 +73,17 @@ module TT::Plugins::Teapot
 		toolbar.add_item(cmd_teacup)
 		toolbar.add_item(cmd_teaspoon)
 		toolbar.show if toolbar.get_last_state == 1
+
+		UI.add_context_menu_handler { |context_menu|
+      sel = Sketchup.active_model.selection
+      if sel.length == 1
+      	entity = sel[0]
+      	type = entity.get_attribute(PLUGIN_ID, 'Type')
+	      if type && %w[Teapot Teacup Teaspoon].include?(type)
+	        context_menu.add_item("Edit #{type}")  { self.edit_object(type) }
+	      end
+	    end
+    }
 	end
 	
 	# Default settings for UI Inputbox'
@@ -100,6 +110,16 @@ module TT::Plugins::Teapot
 	self.pre_process_patches!(@teaspoon)
 
 	
+	def self.edit_object(type)
+		object = {
+			'Teapot'	 => @teapot,
+			'Teacup'	 => @teacup,
+			'Teaspoon' => @teaspoon
+		}[type]
+		self.configure_object(object)
+	end
+
+
 	def self.configure_object(patch_object = @teapot)
 		model = Sketchup.active_model
 		
