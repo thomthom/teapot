@@ -47,26 +47,26 @@ module TT::Plugins::Teapot
 		cmd_teapot.small_icon = File.join(PATH_ICONS, 'teapot_16.png')
 		cmd_teapot.tooltip = 'Creates a Newell\'s Teapot'
 		cmd_teapot.status_bar_text = 'Creates a Newell\'s Teapot'
-		
+
 		cmd_teacup = UI::Command.new('Teacup') { self.configure_object(@teacup) }
 		cmd_teacup.large_icon = File.join(PATH_ICONS, 'teacup_24.png')
 		cmd_teacup.small_icon = File.join(PATH_ICONS, 'teacup_16.png')
 		cmd_teacup.tooltip = 'Creates a Newell\'s Teacup'
 		cmd_teacup.status_bar_text = 'Creates a Newell\'s Teacup'
-		
+
 		cmd_teaspoon = UI::Command.new('Teaspoon') { self.configure_object(@teaspoon) }
 		cmd_teaspoon.large_icon = File.join(PATH_ICONS, 'teaspoon_24.png')
 		cmd_teaspoon.small_icon = File.join(PATH_ICONS, 'teaspoon_16.png')
 		cmd_teaspoon.tooltip = 'Creates a Newell\'s Teaspoon'
 		cmd_teaspoon.status_bar_text = 'Creates a Newell\'s Teaspoon'
-		
+
 		# Menus
 		plugins_menu = UI.menu('Draw')
 		teapot_menu = plugins_menu.add_submenu('Teapot')
 		teapot_menu.add_item(cmd_teapot)
 		teapot_menu.add_item(cmd_teacup)
 		teapot_menu.add_item(cmd_teaspoon)
-		
+
 		# Toolbar
 		toolbar = UI::Toolbar.new('Teapot')
 		toolbar.add_item(cmd_teapot)
@@ -85,18 +85,18 @@ module TT::Plugins::Teapot
 	    end
     }
 	end
-	
+
 	# Default settings for UI Inputbox'
 	@defaults = {}
-	
+
 	# Used for profiling
 	@timer = []
-	
+
 	# Pre Process Patches. Map the vertex indexes to Point3d objects.
 	# Generate default values for the UI dialogs.
 	def self.pre_process_patches!(patch_object)
 		v = patch_object[:vertices]
-		
+
 		@defaults[ patch_object[:name] ] = [6, 'Standard', 'Soft + Smooth', 'No']
 		patch_object[:parts].each { |key, part|
 			@defaults[ patch_object[:name] ] << 'Yes'
@@ -109,7 +109,7 @@ module TT::Plugins::Teapot
 	self.pre_process_patches!(@teacup)
 	self.pre_process_patches!(@teaspoon)
 
-	
+
 	def self.edit_object(type)
 		object = {
 			'Teapot'	 => @teapot,
@@ -122,22 +122,22 @@ module TT::Plugins::Teapot
 
 	def self.configure_object(patch_object = @teapot)
 		model = Sketchup.active_model
-		
+
 		type = patch_object[:name]
 		defaults = @defaults[type]
 		group = nil
 		transformation = nil
 		smooth_type = {'Hard' => 0, 'Soft' => 4, 'Smooth' => 8, 'Soft + Smooth' => 12}
-		
+
 		if model.selection.single_object? && model.selection.first.get_attribute(PLUGIN_ID, 'Type') == type
 			group = model.selection.first
-			
+
 			defaults = []
 			defaults << group.get_attribute(PLUGIN_ID, 'Segments', @defaults[type][0])
-			
+
 			value = group.get_attribute(PLUGIN_ID, 'OriginalScale', @defaults[type][1])
 			defaults << ( (value) ? 'Original' : 'Standard' )
-			
+
 			value = group.get_attribute(PLUGIN_ID, 'Smooth', @defaults[type][2])
 			if RUBY_VERSION.to_i > 1
 				defaults << smooth_type.key(value) # Ruby 2.0+
@@ -147,7 +147,7 @@ module TT::Plugins::Teapot
 
 			value = group.get_attribute(PLUGIN_ID, 'Triangulate', @defaults[type][3])
 			defaults << ((value) ? 'Yes' : 'No')
-			
+
 			patch_object[:parts].each { |key, part|
 				value = group.get_attribute(PLUGIN_ID, "P_#{key}", 'Yes')
 				defaults << ((value) ? 'Yes' : 'No')
@@ -165,31 +165,31 @@ module TT::Plugins::Teapot
 		}
 		result = UI.inputbox(prompts, defaults, list, type)
 		return if result == false # User Cancelled
-		
-		# Remember last values	
+
+		# Remember last values
 		@defaults[type] = result.clone
-		
+
 		# Get general mesh properties
 		segments = result.shift
 		original_scale = (result.shift == 'Original') ? true : false
-		
+
 		smooth = smooth_type[result.shift]
-		
+
 		triangulate = (result.shift == 'Yes') ? true : false
-		
+
 		# Format values - Build list of parts to generate.
 		parts = {}
 		patch_object[:parts].each { |key, part|
 			parts[key] = (result.shift == 'Yes') ? true : false
 		}
-		
+
 		# Alert about number of faces, if > 16
 		# Complete teapot with 32 segments will generate 32768 faces.
 		if segments > 16
 			return if UI.messagebox('With such a high segment count, this will take a long time to complete and produce a lot of faces - without giving a notiable better visual result. Are you sure you want to continue?', MB_OKCANCEL) == 2
 		end
 		# Lets make tea!
-		if group.nil?			
+		if group.nil?
 			place_tool = PlacePatchTool.new(patch_object, segments, original_scale, parts, smooth, triangulate)
 			Sketchup.active_model.tools.push_tool(place_tool)
 			#Sketchup.active_model.select_tool(place_tool)
@@ -202,8 +202,8 @@ module TT::Plugins::Teapot
 			model.commit_operation
 		end
 	end
-	
-	
+
+
 	def self.estimate_point_count(patch_object, segments, parts = Hash.new(true))
 		patch_size = (segments+1)**2
 		point_count = 0
@@ -212,45 +212,45 @@ module TT::Plugins::Teapot
 		}
 		return point_count
 	end
-	
-	
+
+
 	def self.create_object(patch_object = @teapot, segments = 6, original_scale = false, parts = Hash.new(true), smooth = 12, triangulate = false)
 		@timer = []
 		@timer << "\n--- Generating #{patch_object[:name]} ---\n"
 		start_time = Time.now
-		
+
 		# Init variables and UI feedback
 		model = Sketchup.active_model
-		
+
 		#TT::Model.start_operation("Create #{patch_object[:name]}")
 		Sketchup.status_text = "Generating #{patch_object[:name]}. Please wait..."
-		
+
 		# Generate the groups to add geometry into
 		group = model.active_entities.add_group
 		group.name = patch_object[:name]
-		
+
 		# Estimate the point count
 		point_count = self.estimate_point_count(patch_object, segments, parts)
 		@timer << "Estimating Point Count: #{point_count}"
 		pm = Geom::PolygonMesh.new(point_count)
-		
+
 		# Make patches
 		patch_object[:parts].each { |key, part|
 			self.make_patches(pm, part[:patches], segments, part[:copies], triangulate) if parts[key]
 		}
-		
+
 		# Scale
 		if original_scale
 			t = Geom::Transformation.scaling(1.0, 1.0, 1.3)
 			pm.transform!(t)
 		end
-		
+
 		# Insert mesh into the group
 		t_mesh = Time.now
 		group.entities.fill_from_mesh(pm, true, smooth)
 		@timer << "\n> Mesh generated in #{Time.now - t_mesh} seconds"
 		@timer << "> #{pm.count_polygons} polygons and #{pm.count_points} points"
-		
+
 		# Add attributes
 		group.set_attribute(PLUGIN_ID, 'Type', patch_object[:name])
 		group.set_attribute(PLUGIN_ID, 'Segments', segments)
@@ -263,25 +263,25 @@ module TT::Plugins::Teapot
 
 		# Complete operation
 		#model.commit_operation
-		
+
 		feedback = "#{patch_object[:name]} with #{segments} segments generated in #{Time.now - start_time} seconds"
 		Sketchup.status_text = feedback
 		@timer << feedback
-		
+
 		# Output summary to console
 		puts @timer.join("\n")
-		
+
 		return group
 	end
-	
-	
+
+
 	def self.make_patches(pm, patches, segments = 3, copies = 1, triangulate = false)
 		patches.each { |patch|
 			self.make_patch(pm, patch, segments, copies, triangulate)
 		}
 	end
-	
-	
+
+
 	def self.make_patch(pm, patch, segments = 3, copies = 1, triangulate = false)
 		# Generate initial patch.
 		if segments > 1
@@ -300,15 +300,15 @@ module TT::Plugins::Teapot
 				self.patch_to_mesh(pm, points, triangulate)
 			}
 		elsif copies == 2
-			# (!) Must change they way we mirror. This way makes the mirrored patch show the 
+			# (!) Must change they way we mirror. This way makes the mirrored patch show the
 			# reverse side out.
 			t_mirror = Geom::Transformation.scaling(1, -1, 1)
 			points.map! { |p| p.transform(t_mirror) }
 			self.patch_to_mesh(pm, points, triangulate, true)
 		end
 	end
-	
-	
+
+
 	# Assume a quadratic set of points
 	#
 	# Example using a 4x4 set of points:
@@ -329,13 +329,13 @@ module TT::Plugins::Teapot
 	# 4--5
 	#
 	# ... otherwise triangulate.
-	# 
+	#
 	# 0--1    1
 	# | /   / |
 	# 4    4--5
 	#
 	# Continue to the next set...
-	# 
+	#
 	#  1  2
 	#  5  6
 	#
@@ -349,19 +349,19 @@ module TT::Plugins::Teapot
 	# * A PolygonMesh on success.
 	def self.patch_to_mesh(pm, patch, triangulate = false, mirror = false)
 		#puts 'mirror' if mirror
-		
+
 		point_index = {}
 		patch.each { |i|
 			point_index[i] = pm.add_point(i)
 		}
-		
+
 		# Get the size of the rows/columns.
 		size = Math.sqrt(patch.length).to_i
-		
+
 		0.upto(size-2) { |i|
 			0.upto(size-2) { |j|
 				r = i * size # Current row
-				
+
 				# Remove all duplicates to avoid errors.
 				points = self.point3d_uniq([
 						patch[j+r],
@@ -369,19 +369,19 @@ module TT::Plugins::Teapot
 						patch[j+size+1+r],
 						patch[j+size+r]
 					])
-				
+
 				# Compile array of point indexes.
 				indexes = points.collect { |point| point_index[point] }
 				indexes.reverse! if mirror
 
 				next unless points.length > 2
-				
+
 				if points.length == 3
 					pm.add_polygon(indexes)
 				else
 					# When triangulate is false, try to make quadfaces. Find out if all the points
 					# fit on the same plane.
-					if triangulate 
+					if triangulate
 						pm.add_polygon([ indexes[0], indexes[1], indexes[2] ])
 						pm.add_polygon([ indexes[0], indexes[2], indexes[3] ])
 					else
@@ -398,7 +398,7 @@ module TT::Plugins::Teapot
 			}
 		}
 	end
-	
+
 	# Compare two floats with some tolerance. (Thanks jeff99)
 	def self.floats_equal?(float1, float2, epsilon = 0.00000001)
 		return (float1 - float2).abs < epsilon
@@ -423,9 +423,9 @@ module TT::Plugins::Teapot
 		return uniq_points
 	end
 
-	
+
 	class PlacePatchTool
-	
+
 		def initialize(patch_object, segments, original_scale, parts = Hash.new(true), smooth = 12, triangulate = false)
 			# Store values for later when we generate the object.
 			@patch_object = patch_object
@@ -447,16 +447,16 @@ module TT::Plugins::Teapot
 			# everytime we need to draw the shape.
 			@mesh = pm.polygons.collect { |p| p.collect{ |i| pm.point_at(i) } }
 		end
-		
+
 		def activate
-			@state = :pick_origin 
+			@state = :pick_origin
 			@origin = nil
 		end
-		
+
 		def deactivate(view)
-			view.invalidate 
+			view.invalidate
 		end
-		
+
 		def onMouseMove(flags, x, y, view)
 			case @state
 			when :pick_origin
@@ -467,7 +467,7 @@ module TT::Plugins::Teapot
 				view.invalidate
 			end
 		end
-		
+
 		def onLButtonUp(flags, x, y, view)
 			case @state
 			when :pick_origin
@@ -490,11 +490,11 @@ module TT::Plugins::Teapot
 				Sketchup.active_model.tools.pop_tool
 			end
 		end
-		
+
 		def draw(view)
 			if @state == :pick_origin || @state == :pick_orientation
 				return if @origin.nil?
-				
+
 				#  Draw the origin and orientation.
 				unless @orientation.nil?
 					view.set_color_from_line(@origin.position, @orientation.position)
@@ -502,7 +502,7 @@ module TT::Plugins::Teapot
 					@orientation.draw(view)
 				end
 				@origin.draw(view)
-				
+
 				view.drawing_color = 'Purple'
 				@mesh.each { |polygon|
 					# Calculate Transformation
@@ -524,15 +524,15 @@ module TT::Plugins::Teapot
 				}
 			end
 		end
-		
+
 		def getExtents
 			return @bb
 		end
-		
+
 	end # class PlacePatchTool
 
-  ### DEBUG ### ------------------------------------------------------------  
-  
+  ### DEBUG ### ------------------------------------------------------------
+
   # @note Debug method to reload the plugin.
   #
   # @example
@@ -560,7 +560,7 @@ module TT::Plugins::Teapot
   ensure
     $VERBOSE = original_verbose
   end
-  
+
 end # module
 
 end # if TT_Lib

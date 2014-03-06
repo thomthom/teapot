@@ -14,7 +14,7 @@ module TT::Plugins::Teapot
 	# Hash containing arrays of the patches.
 	@teacup = {
 		:name => 'Teacup',
-		
+
 		:parts => {
 			:cup => {
 				:copies => 1,
