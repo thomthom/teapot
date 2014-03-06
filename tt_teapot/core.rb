@@ -139,8 +139,12 @@ module TT::Plugins::Teapot
 			defaults << ( (value) ? 'Original' : 'Standard' )
 			
 			value = group.get_attribute(PLUGIN_ID, 'Smooth', @defaults[type][2])
-			defaults << smooth_type.index(value)
-			
+			if RUBY_VERSION.to_i > 1
+				defaults << smooth_type.key(value) # Ruby 2.0+
+			else
+				defaults << smooth_type.index(value) # Ruby 1.8
+			end
+
 			value = group.get_attribute(PLUGIN_ID, 'Triangulate', @defaults[type][3])
 			defaults << ((value) ? 'Yes' : 'No')
 			
